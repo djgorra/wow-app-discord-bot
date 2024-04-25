@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 
 def handle_user_messages(msg) ->str:
     message = msg.lower() #Converts all inputs to lower case
-    if(message == 'hi'):
-        return 'Hi there'
-    if(message == 'hello'):
+    print(message)
+    if(message == '<@1232040337652973652>'):
+        return 'Intro message'
+    else:
         return 'Hello user. Welcome'
 
 async def processMessage(message, user_message):
@@ -32,6 +33,13 @@ def runBot():
     async def on_message(message):
         if message.author == client.user:
             return
-        await processMessage(message, 'hi')
+        await processMessage(message, message.content)
+
+    @client.event
+    async def on_raw_reaction_add(payload):
+        print(payload)
+        # print(payload.member.name)
+        # print(payload.emoji.name)
+        # print(payload.message)
 
     client.run(TOKEN)
