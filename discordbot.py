@@ -61,16 +61,19 @@ def runBot():
                 #return user == message.author and str(reaction.emoji) == '👍'
                 return reaction.message.id == intro_message.id
 
+            def post(name, class_name):
+                url = 'https://wow-app-rails-5c78013cc11c.herokuapp.com/api/characters/discord_create'
+                myobj = {'character': {'name': name, 'class': class_name}}
+                x = requests.post(url, json = myobj)
+                print(x.text)
+
             try:
                 reaction, user = await client.wait_for('reaction_add', timeout=86400.0, check=check)
             except asyncio.TimeoutError:
                 await channel.send('👎')
             else:
                 await message.author.send("This is a private message! If you already have an account on raidcraft-app.com, reply with your wow id. Otherwise reply with 'newcharacter' to begin a new character.")
-                url = 'https://wow-app-rails-5c78013cc11c.herokuapp.com/api/characters/discord_create'
-                myobj = {'message': "Hello World!"}
-                x = requests.post(url, json = myobj)
-                print(x.text)
+
                 #todo - if they say 'newcharacter' then begin the process of creating a new character
                 msg = await client.wait_for('message', check=check_message)
                 await message.author.send(f'What is your character name?')
@@ -79,6 +82,8 @@ def runBot():
                 await message.author.send(f'What is your class?')
                 msg = await client.wait_for('message', check=get_response)
                 character_class = msg.content
+
+                post(character_name, character_class)
 
 
 
