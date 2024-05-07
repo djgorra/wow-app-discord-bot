@@ -5,21 +5,6 @@ import asyncio
 import requests
 
 
-# def handle_user_messages(msg) ->str:
-#     message = msg.lower() #Converts all inputs to lower case
-#     print(message)
-#     if(message == '<@1232040337652973652>'):
-#         return 'Intro message'
-#     else:
-#         return 'Hello user. Welcome'
-
-# async def processMessage(message, user_message):
-#     try:
-#         botfeedback = handle_user_messages(user_message)
-#         await message.channel.send(botfeedback)
-#     except Exception as error:
-#         print(error)
-
 def runBot():
     load_dotenv()
     TOKEN = os.getenv('DISCORD_TOKEN')
@@ -29,76 +14,52 @@ def runBot():
     async def on_ready():
         print({client.user}, 'is live')
 
-    # @client.event
-    # async def on_message(message):
-    #     if message.author == client.user:
-    #         return
-    #     await processMessage(message, message.content)
-
-    # @client.event
-    # async def on_raw_reaction_add(payload):
-    #     print(payload)
-    #     print(payload.member.name)
-    #     print(payload.emoji.name)
-    #     print(payload.message)
-
     @client.event
     async def on_message(message):
         print("Got message: "+message.content);
-        # if message.content.startswith('<@1232040337652973652> $start'):
-        #     def get_response(m):
-        #         return 1
-        #     await message.author.send('Hello! I am a bot that helps you organize your World of Warcraft runs. Please reply with your BattleID to get started.')
-        #     msg = await client.wait_for('message', check=get_response)
-        #     battleID = msg.content
-        #     await message.author.send('Thanks! To start a new run, type <@1232040337652973652> $newrun in a public channel')
-
-        if message.content.startswith('<@1232040337652973652> $newrun'):
-            channel = message.channel
-            #print("BattleID is "+battleID)
-            #create a new invite code
-            url = 'https://wow-app-rails-5c78013cc11c.herokuapp.com/api/teams/discord_create' 
-            #this will create a new team and return the invite code
-            #send message author's discord id as parameter  
-            myobj = {'discord_id': message.author.id, 'battle_id': 'BearForce1#1359'}
-            x = requests.post(url, json = myobj)
-            invite_code = x.text or "12345"
-
-            intro_message = await channel.send('Let\'s start a new run! Reply with an emoji to join the run')
-
-            def check_message(m):
-                return m.content == 'newcharacter' #and m.channel == channel
-
-            def get_response(m):
-                return 1
-
-            def check(reaction, user):
-                #Todo - check if user is not a bot
-                #todo - response to all users, not just message.author
-                #return user == message.author and str(reaction.emoji) == '👍'
-                return reaction.message.id == intro_message.id
-
-            try:
-                reaction, user = await client.wait_for('reaction_add', timeout=86400.0, check=check)
-            except asyncio.TimeoutError:
-                await channel.send('👎')
+        channel = message.channel
+        def get_input(m):
+            return True
+        if message.content.startswith('<@1232040337652973652>') and "help" in message.content:
+            #i.e. if the message is @Raidcraft-bot help, then send the intro message
+            await channel.send('Hello! I am a bot that helps you organize your World of Warcraft runs. To start a new run, type @Raidcraft-bot $newrun in a public channel. Please create an account on https://www.raidcraft-app.com/ and get your BattleID ready. I will ask you for it in a private message.')
+        elif message.content.startswith('<@1232040337652973652> $newrun'):
+            newrun_message = message
+            await newrun_message.author.send('Looks like you want to start a new run, but I don\'t have your BattleID. Please reply with your BattleID to get started.')
+            battle_id_msg = await client.wait_for('message', check=get_input)
+            battleID = battle_id_msg.content
+           
+            x = requests.post('https://wow-app-rails-5c78013cc11c.herokuapp.com/api/users/battle_id' , json = {'discord_id': message.author.id, 'battle_id': battleID })
+            response = x.text
+            parsed = JSON.parse(response)
+            if parsed["message"] == "User not found":
+                await message.author.send('Sorry, I couldn\'t find your account. Please create an account on https://www.raidcraft-app.com/ and try again.')
+                return
             else:
-                await message.author.send("This is a private message! If you already have an account on raidcraft-app.com, reply with your wow id. Otherwise reply with 'newcharacter' to begin a new character.")
+                teams = parsed["teams"]
+                await message.author.send('Got it! Choose a Team:')
+                i = 0
+                for team in teams:
+                    i += 1
+                    await message.author.send(i+") " + team["name"] + " - " + team["description"])
 
-                #todo - if they say 'newcharacter' then begin the process of creating a new character
-                msg = await client.wait_for('message', check=check_message)
-                await message.author.send('What is your character name?')
-                msg = await client.wait_for('message', check=get_response)
-                character_name = msg.content
-                await message.author.send('What is your class?')
-                msg = await client.wait_for('message', check=get_response)
-                character_class = msg.content
+                response = await client.wait_for('message', check=get_input)
+                team_id = response.content
+                # #todo: Save the discord_id and battle_id in the database, so that we don't have to ask for the Battle ID again 
+                #todo: check if the response is valid, have better error handling
+                if invite_code and team_number:
+                    intro_message = await channel.send('Let\'s start a new run! Reply with an emoji to join the run')
 
-                url = 'https://wow-app-rails-5c78013cc11c.herokuapp.com/api/characters/discord_create'
-                myobj = {'character': {'name': character_name, 'class': class_name}, 'invite_code': invite_code}
-                x = requests.post(url, json = myobj)
-                print(x.text)
+                    def check_reaction(reaction, user):
+                        return reaction.message.id == intro_message.id
 
-
+                    try:
+                        reaction, user = await client.wait_for('reaction_add', timeout=86400.0, check=check_reaction)
+                    except asyncio.TimeoutError:
+                        await channel.send('No reactions in time. 👎')
+                    else:
+                        await reaction.message.author.send("Get ready to raid! Just click this link to add your character: https://www.raidcraft-app.com/characters/new?invite_code="+invite_code+"&team_id="+team_id
+                else:
+                    await message.author.send('Sorry, something went wrong. Please try again later.')
 
     client.run(TOKEN)
