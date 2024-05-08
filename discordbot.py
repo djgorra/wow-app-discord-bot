@@ -30,10 +30,10 @@ def runBot():
             battle_id_msg = await client.wait_for('message', check=get_input)
             battleID = battle_id_msg.content
             #todo: Save the discord_id and battle_id in the database, so that we don't have to ask for the Battle ID again 
-            x = requests.post('https://wow-app-rails-5c78013cc11c.herokuapp.com/api/users/battle_id' , json = {'discord_id': message.author.id, 'battle_id': battleID })
+            x = requests.post('https://wow-app-rails-5c78013cc11c.herokuapp.com/api/users/battletag' , json = {'discord_id': message.author.id, 'battletag': battleID })
             response = x.text
             parsed = json.loads(response)
-            if parsed["message"] == "User not found":
+            if "errors" in parsed:
                 await message.author.send('Sorry, I couldn\'t find your account. Please create an account on https://www.raidcraft-app.com/ and try again.')
                 return
             else:
@@ -42,7 +42,7 @@ def runBot():
                 i = 0
                 for team in teams:
                     i += 1
-                    await message.author.send(i+") " + team["name"] + " - " + team["description"])
+                    await message.author.send(i+") " + team["name"] + " - ")
 
                 response = await client.wait_for('message', check=get_input)
                 chosen_team = teams[int(response.content)-1]
